@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="nav_reaction" type="stop.py" name="interact_stop_moving"  output="screen">
+  </node>
+</launch>

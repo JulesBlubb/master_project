@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="nav_reaction" type="stop_service_client.py" name="interact_stop_moving_client"  output="screen">
+  </node>
+</launch>
