@@ -24,6 +24,7 @@ def extract_data(dat):
     for d in detections:
       vel.append(d.velocity.point)
       pos.append(d.position.point)
+      #print(pos)
       cov.append(d.cov)
     return vel, pos, cov
 
@@ -126,7 +127,8 @@ def callback(msg, args):
 
     # Loop over Position and Velocity Data and make Transformation from /odom to /base_link
     for v, p in zip(vel,pos):
-        #print('X:', p.x)
+        #print('pos:', pos)
+
         pointstamp.point.x = p.x
         pointstamp.point.y = p.y
         pointstamp.point.z = p.z
@@ -165,6 +167,7 @@ def callback(msg, args):
             temp = tuple(temp.flatten())
 
             result_pos = listener.transformPoint('/base_link', pointstamp)
+            print(result_pos)
             result_vel = listener.transformVector3('/base_link', vel_in_odom)
 
             # Check that the transformed covariance is right. (The cicles should be overlapping)
@@ -175,6 +178,7 @@ def callback(msg, args):
             only_coord_vel = prepare_data(result_vel, 'vel')
 
             file.write('Position: ' + str(only_coord_pos) + '\n' + 'Velocity: ' + str(only_coord_vel) + '\n' + 'Cov_posi: ' + str(temp) + '\n')
+
         except Exception as e:
             print('Exception thrown: ', e)
             pass
@@ -196,27 +200,29 @@ def callback_force(msg, file):
 
 if __name__ == '__main__':
     rospy.init_node('point_converter')
+    rate = rospy.Rate(30)
+    #while not rospy.is_shutdown():
+
     for file in glob.glob(os.path.join('/media/juliane/Robot/Recorded-data-intention/data/', '*.bag')):
-        #file = '/home/juliane/catkin_ws/src/intentionrf/src/bag/voice_int_2019-08-28-11-14-58.bag'
+            fileName = os.path.basename(file).split('.')[0]
 
-        fileName = os.path.basename(file).split('.')[0]
-        rate = rospy.Rate(30)
+            path = "/home/juliane/catkin_ws/src/intentionrf/src/transformed/"
+            filePath = path + fileName + "_transformed.txt"
+            curr_file = open(filePath, "a+")
 
-        path = "/home/juliane/catkin_ws/src/intentionrf/src/transformed/"
-        filePath = path + fileName + "_transformed.txt"
-        curr_file = open(filePath, "a")
+            #if os.path.getsize(filePath):
+            #    rospy.signal_shutdown('Finish!')
 
-        # for plotting publish MarkerArray
-        pub = rospy.Publisher('~cov', MarkerArray, queue_size=1)
-        rospy.Subscriber("mobilityais_detector/tracks", Detections, callback, (pub, curr_file))
+            # for plotting publish MarkerArray
+            pub = rospy.Publisher('~cov', MarkerArray, queue_size=1)
+            rospy.Subscriber("mobilityais_detector/tracks", Detections, callback, (pub, curr_file))
 
-        # for recorded forces
-        #rospy.Subscriber("clipped_filtered_force", WrenchStamped, callback_force, fileTest)
+            # for recorded forces
+            #rospy.Subscriber("clipped_filtered_force", WrenchStamped, callback_force, fileTest)
 
-        listener = tf.TransformListener()
+            listener = tf.TransformListener()
 
-        subprocess.call(["rosbag", "play", file])
-        # fileTest.close()
+            subprocess.call(["rosbag", "play", file])
+            #curr_file.close()
 
     rospy.spin()
-
