@@ -17,6 +17,7 @@ import plotly.express as px
 from scipy import interp
 from bayes_opt import BayesianOptimization
 
+
 # Read in Files
 def readIn(fileName):
     lineList = [line.rstrip('\n') for line in open(fileName)]
@@ -93,8 +94,7 @@ def createDf(fileName, label):
     X['label'] = label
     return X
 
-def createOneDataFrame():
-    path = 'transformed/'
+def createOneDataFrame(path):
     X_temp = []
     for filename in glob.glob(os.path.join(path, '*.txt')):
         first_fileword = os.path.basename(filename).split('_')[0]
@@ -110,28 +110,20 @@ def mirror(dat):
     y_values_vel = np.matrix(dat['vel_y'])
     return(y_values_pos.I, y_values_vel.I)
 
-
-#from fancyimpute import KNN
-
-# #train_cols = list(X)
-
-# # Use 5 nearest rows which have a feature to fill in each row's
-# # missing features
-
-# #X = pd.DataFrame(KNN(k=13).fit_transform(X))
-# # # train.columns = train_cols
-
 # # Bayesian Optimization Code based on https://www.kdnuggets.com/2019/07/xgboost-random-forest-bayesian-optimisation.html
 def bayesian_optimization(dataset, function, parameters):
    X_train, y_train, X_val, y_val = dataset
-   n_iterations = 5
+   n_iterations = 10
    # gp_params = {"alpha": 1e-4}
    # kernel=Matern(nu=2.5)
    #  alpha=1e-6,normalize_y=True, n_restarts_optimizer=5,
-   BO = BayesianOptimization(function, parameters)
-   BO.maximize(n_iter=n_iterations)
+   optimizer = BayesianOptimization(function, parameters, random_state=1)
+   optimizer.maximize(n_iter=n_iterations, init_points=5)
+   x = np.linspace(1, 150, 1000).reshape(-1, 1)
+   print(function)
+   #plot_gp(optimizer, np.transpose(x), function)
 
-   return BO.max
+   return optimizer.max
 
 def rfc_optimization(cv_splits, X_train, y_train):
     def function(n_estimators, max_depth, min_samples_split):
@@ -171,16 +163,49 @@ def train(X_train, y_train, X_val, y_val, function, parameters):
 
 
 def splitting():
-    X_temp = createOneDataFrame()
+    path_train = 'transformed/'
+    path_test = 'transformed/test_person'
+    X_temp = createOneDataFrame(path_train)
+    #X_test_person = createOneDataFrame(path_test)
+
     # add mirrored y_values
-    #X_temp['inv_pos_y'] = mirror(X_temp)[0]
-    #X_temp['inv_vel_y'] = mirror(X_temp)[1]
+    X_temp['inv_pos_y'] = mirror(X_temp)[0]
+    X_temp['inv_vel_y'] = mirror(X_temp)[1]
 
     X_nona = X_temp.fillna(-99999)
 
+    # with Testdata of person
+    #X_test_person['inv_pos_y'] = mirror(X_test_person)[0]
+    #X_test_person['inv_vel_y'] = mirror(X_test_person)[1]
+
+    #X_test_temp = X_test_person.fillna(-99999)
+
+#   data = {'var_px': cov[0], 'cov_p_xy': cov[1], 'cov_p_xz': cov[2],
+#           'var_py': cov[4], 'cov_p_yz': cov[5], 'var_pz': cov[8]}
+
     X = X_nona.drop('label', axis=1)
-    #X = X_temp.drop('vel_z', axis=1)
+
+    #X_test = X_test_temp.drop('label', axis=1)
+    #print('X_test', X_test.count())
+
+
+    X = X.drop('vel_z', axis=1)
+    # dropping according to feature importance and correlation matrix results
+
+    # X = X.drop('var_py', axis=1)
+    # X = X.drop('var_px', axis=1)
+    # X = X.drop('var_pz', axis=1)
+
+    # X = X.drop('vel_x_t-1', axis=1)
+    # X = X.drop('vel_x_t-2', axis=1)
+    # X = X.drop('vel_x_t-3', axis=1)
+    # X = X.drop('vel_y_t-1', axis=1)
+    # X = X.drop('vel_y_t-2', axis=1)
+    # X = X.drop('vel_y_t-3', axis=1)
+
     y = X_temp['label']
+
+    #y_test = X_test_person['label']
 
     # # Splitting data, 64% Training,16% Validation, 20% Test
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
@@ -188,20 +213,6 @@ def splitting():
 
     return X_train, y_train, X_test, y_test, X_val, y_val
 
-def main():
-    # get hyperparamter through Bayesian Optimization
-    # gives that if max_depth is very small <10, the result is poor
-    # from visualizations import roc_plot
-    #fit, cm, model = roc_plot()
-    X_train, y_train, X_test, y_test, X_val, y_val = splitting()
-    #bayes_model = train(X_train, y_train, X_val, y_val, rfc_optimization(10, X_train, y_train)[0], rfc_optimization(10, X_train, y_train)[1])
-    #print(bayes_model)
-
-
-main()
-
-
-    # # #Stratification is the process of rearranging the data as to ensure each fold is a good representative of the whole.
 
 # #clf = GradientBoostingClassifier(n_estimators=200, learning_rate=0.1, max_depth=6, random_state=0, min_samples_split= 500, max_features='sqrt')
 # # clf.fit(X_train, y_train)
